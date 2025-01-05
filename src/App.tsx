@@ -1,35 +1,54 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+async function getEmojiArr(emojiCount: number) {
+	const response = await fetch("https://emojihub.yurace.pro/api/all", {
+		method: "GET",
+	});
+	const emojiArr = await response.json();
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+	const randomEmojiArr = [];
+
+	for (let i = 0; i < emojiCount; i++) {
+		randomEmojiArr.push(
+			emojiArr[Math.floor(Math.random() * emojiArr.length)].unicode[0]
+		);
+	}
+
+	return randomEmojiArr;
 }
 
-export default App
+function App() {
+	const [emojiArr, setEmojiArr] = useState<string[] | []>([]);
+
+	useEffect(() => {
+		getEmojiArr(20).then((emojiData) => setEmojiArr(emojiData));
+	}, []);
+
+	return (
+		<>
+			{emojiArr.map((emoji) => {
+				const emojiUnicode = emoji;
+				const emojiUnicodeNumber = parseInt("0x" + emojiUnicode.slice(2));
+				return (
+					<Card
+						key={emojiUnicodeNumber}
+						emojiUnicodeNumber={emojiUnicodeNumber}
+					></Card>
+				);
+			})}
+		</>
+	);
+}
+
+function Card({ emojiUnicodeNumber }: { emojiUnicodeNumber: number }) {
+	return (
+		<>
+			<div className="emoji-card">
+				<div className="emoji">{String.fromCodePoint(emojiUnicodeNumber)}</div>
+			</div>
+		</>
+	);
+}
+
+export default App;
