@@ -14,12 +14,21 @@
 
 	border: black solid 5px;
 }
-.emoji-card:hover {
-	border: blue solid 5px;
+
+.correct {
+	border: green solid 5px;
 }
+
+.incorrect {
+	border: red solid 5px;
+}
+/* .emoji-card:hover {
+	border: blue solid 5px;
+	cursor: pointer;
+} */
 
 .emoji {
 	width: 100%;
 	height: 100%;
-	font-size: 5vh;
+	font-size: 10vh;
 }
