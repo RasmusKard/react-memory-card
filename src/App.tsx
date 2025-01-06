@@ -1,17 +1,31 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import bronzeIcon from "./assets/bronze.png";
+import silverIcon from "./assets/silver.png";
+import goldIcon from "./assets/gold.png";
+import platinumIcon from "./assets/platinum.png";
+import diamondIcon from "./assets/diamond.png";
+import masterIcon from "./assets/master.png";
+import challengerIcon from "./assets/challenger.png";
+
+const RANKSARRAY = [
+	{ name: "bronze", img: bronzeIcon, requiredScore: 0 },
+	{ name: "silver", img: silverIcon, requiredScore: 5 },
+	{ name: "gold", img: goldIcon, requiredScore: 10 },
+	{ name: "platinum", img: platinumIcon, requiredScore: 25 },
+	{ name: "diamond", img: diamondIcon, requiredScore: 35 },
+	{ name: "master", img: masterIcon, requiredScore: 45 },
+	{ name: "challenger", img: challengerIcon, requiredScore: 60 },
+];
 
 interface emojiObj {
 	unicode: string;
 }
 
 async function getEmojiArr(emojiCount: number) {
-	const response = await fetch(
-		"https://emojihub.yurace.pro/api/all/category/food-and-drink",
-		{
-			method: "GET",
-		}
-	);
+	const response = await fetch("https://emojihub.yurace.pro/api/all", {
+		method: "GET",
+	});
 	const emojiArr: emojiObj[] = await response.json();
 	emojiCount = Math.min(emojiArr.length, emojiCount);
 
@@ -26,26 +40,32 @@ async function getEmojiArr(emojiCount: number) {
 	return randomEmojiSet;
 }
 
-// event listener on emoji click
-// check if emoji is in clicked emojis
-// true = game lost
-// false = add to clicked emojis and increment score
-
-function Header({ score, highScore }: { score: number; highScore: number }) {
+function Header({
+	score,
+	currentRankTier,
+}: {
+	score: number;
+	currentRankTier: number;
+}) {
+	const goalScore = RANKSARRAY[currentRankTier + 1].requiredScore;
 	return (
 		<>
-			<h3>Current Score: {score}</h3>
-			<h3>High Score: {highScore}</h3>
+			<div id="rank-container">
+				<img id="rank-icon" src={bronzeIcon}></img>
+				{score} LP
+				<progress value={score} max={goalScore}></progress>
+				{goalScore} LP
+				<img id="rank-icon" src={silverIcon}></img>
+			</div>
 		</>
 	);
 }
 
 function Game({
-	highScore,
 	emojiSet,
 	gameOverFunction,
+	currentRankTier,
 }: {
-	highScore: number;
 	emojiSet: Set<number>;
 	gameOverFunction({
 		score,
@@ -54,8 +74,9 @@ function Game({
 		score: number;
 		gameKey: `${string}-${string}-${string}-${string}-${string}`;
 	}): void;
+	currentRankTier: number;
 }) {
-	const [score, setScore] = useState(0);
+	const [score, setScore] = useState(RANKSARRAY[currentRankTier].requiredScore);
 
 	function userLost() {
 		gameOverFunction({ score: score, gameKey: crypto.randomUUID() });
@@ -67,7 +88,7 @@ function Game({
 
 	return (
 		<>
-			<Header highScore={highScore} score={score}></Header>
+			<Header score={score} currentRankTier={currentRankTier}></Header>
 
 			<MemoryCard
 				emojiSet={emojiSet}
@@ -122,8 +143,10 @@ function MemoryCard({
 
 	return (
 		<>
-			<div className={"emoji-card " + (isCorrect ? isCorrect : "")}>
-				<div className="emoji">{String.fromCodePoint(visibleEmoji)}</div>
+			<div className="emoji-card">
+				<div className={"emoji " + (isCorrect ? isCorrect : "")}>
+					{String.fromCodePoint(visibleEmoji)}
+				</div>
 			</div>
 
 			<div>
@@ -136,7 +159,7 @@ function MemoryCard({
 
 function App() {
 	const [emojiSet, setEmojiSet] = useState<Set<number>>(new Set());
-	const [highScore, setHighScore] = useState(0);
+	const [rankTier, setRankTier] = useState(0);
 	const emojiTotalCount = 10;
 	const [gameKey, setGameKey] = useState(crypto.randomUUID());
 
@@ -150,7 +173,6 @@ function App() {
 		// set high score and change game key
 		alert("you lost");
 		setGameKey(gameKey);
-		setHighScore(score);
 	}
 
 	useEffect(() => {
@@ -160,12 +182,20 @@ function App() {
 	}, [emojiTotalCount]);
 
 	return (
-		<Game
-			key={gameKey}
-			highScore={highScore}
-			emojiSet={emojiSet}
-			gameOverFunction={gameOver}
-		></Game>
+		<>
+			<h1 id="app-title">
+				How high can you climb in the ranked ladder of memory?
+			</h1>
+
+			<hr></hr>
+
+			<Game
+				key={gameKey}
+				emojiSet={emojiSet}
+				gameOverFunction={gameOver}
+				currentRankTier={rankTier}
+			></Game>
+		</>
 	);
 }
 
