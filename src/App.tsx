@@ -31,42 +31,90 @@ async function getEmojiArr(emojiCount: number) {
 // true = game lost
 // false = add to clicked emojis and increment score
 
-function App() {
-	const [emojiSet, setEmojiSet] = useState<Set<number>>(new Set());
+function Header({ score, highScore }: { score: number; highScore: number }) {
+	return (
+		<>
+			<h3>Current Score: {score}</h3>
+			<h3>High Score: {highScore}</h3>
+		</>
+	);
+}
+
+function Game({
+	highScore,
+	emojiSet,
+	gameOverFunction,
+}: {
+	highScore: number;
+	emojiSet: Set<number>;
+	gameOverFunction({
+		score,
+		gameKey,
+	}: {
+		score: number;
+		gameKey: `${string}-${string}-${string}-${string}-${string}`;
+	}): void;
+}) {
+	const [score, setScore] = useState(0);
+
+	function userLost() {
+		gameOverFunction({ score: score, gameKey: crypto.randomUUID() });
+	}
+
+	function incrementScore() {
+		setScore(score + 1);
+	}
+
+	return (
+		<>
+			<Header highScore={highScore} score={score}></Header>
+
+			<MemoryCard
+				emojiSet={emojiSet}
+				userLostFunction={userLost}
+				scoreIncrementFunction={incrementScore}
+			></MemoryCard>
+		</>
+	);
+}
+
+function MemoryCard({
+	emojiSet,
+	userLostFunction,
+	scoreIncrementFunction,
+}: {
+	emojiSet: Set<number>;
+	userLostFunction: () => void;
+	scoreIncrementFunction: () => void;
+}) {
 	const [visibleEmoji, setVisibleEmoji] = useState(10003);
 	const [clickedEmojis, setClickedEmojis] = useState<Set<number>>(new Set());
-	const [score, setScore] = useState(0);
-	const [highScore, setHighScore] = useState(0);
 	const [isCorrect, setIsCorrect] = useState<string | null>(null);
 
-	const emojiTotalCount = 10;
-
 	useEffect(() => {
-		getEmojiArr(emojiTotalCount).then((emojiData) => {
-			setEmojiSet(emojiData);
-			const emojiArr = Array.from(emojiData);
+		// getEmojiArr(emojiTotalCount).then((emojiData) => {
+		// 	setEmojiSet(emojiData);
+		if (emojiSet.size > 0) {
+			const emojiArr = Array.from(emojiSet);
 			setVisibleEmoji(emojiArr[Math.floor(Math.random() * emojiArr.length)]);
-		});
-	}, [emojiTotalCount]);
+		}
+		// });
+	}, [emojiSet]);
 
 	function handleEmojiClick(userSeenChoice: boolean) {
-		const userHasSeen = clickedEmojis.has(visibleEmoji);
-
-		const userMadeCorrectChoice = userSeenChoice !== userHasSeen;
-		setIsCorrect(userMadeCorrectChoice ? "correct" : "incorrect");
-
+		const userMadeCorrectChoice =
+			userSeenChoice !== clickedEmojis.has(visibleEmoji);
+		setIsCorrect(userMadeCorrectChoice ? "correct" : null);
 		if (!userMadeCorrectChoice) {
-			// user choice wrong, lose
-			setHighScore(Math.max(highScore, score));
-			setClickedEmojis(new Set());
+			userLostFunction();
 			return;
 		}
 
-		setScore(score + 1);
+		scoreIncrementFunction();
+
 		const newClickedEmojis = new Set(clickedEmojis);
 		newClickedEmojis.add(visibleEmoji);
 		setClickedEmojis(newClickedEmojis);
-
 		const emojiArr = Array.from(emojiSet);
 		setVisibleEmoji(emojiArr[Math.floor(Math.random() * emojiArr.length)]);
 		// add emoji to clicked emojis list and remove from emojiarr
@@ -74,15 +122,6 @@ function App() {
 
 	return (
 		<>
-			<h3>Current Score: {score}</h3>
-			<h3>High Score: {highScore}</h3>
-			{/* <p>
-				Clicked Emojis:{" "}
-				{Array.from(clickedEmojis).map((emojiNumber) => {
-					return String.fromCodePoint(emojiNumber);
-				})}
-			</p> */}
-
 			<div className={"emoji-card " + (isCorrect ? isCorrect : "")}>
 				<div className="emoji">{String.fromCodePoint(visibleEmoji)}</div>
 			</div>
@@ -91,30 +130,43 @@ function App() {
 				<button onClick={() => handleEmojiClick(true)}>New ✅</button>{" "}
 				<button onClick={() => handleEmojiClick(false)}>Old ❌</button>
 			</div>
-
-			{/* <Card
-				key={emojiNumber}
-				emojiUnicodeNumber={emojiNumber}
-				handleEmojiClick={() => handleEmojiClick(emojiNumber)}
-			></Card> */}
 		</>
 	);
 }
 
-// function Card({
-// 	emojiUnicodeNumber,
-// 	handleEmojiClick,
-// }: {
-// 	emojiUnicodeNumber: number;
-// 	handleEmojiClick: () => void;
-// }) {
-// 	return (
-// 		<>
-// 			<div onClick={handleEmojiClick} className="emoji-card">
-// 				<div className="emoji">{String.fromCodePoint(emojiUnicodeNumber)}</div>
-// 			</div>
-// 		</>
-// 	);
-// }
+function App() {
+	const [emojiSet, setEmojiSet] = useState<Set<number>>(new Set());
+	const [highScore, setHighScore] = useState(0);
+	const emojiTotalCount = 10;
+	const [gameKey, setGameKey] = useState(crypto.randomUUID());
+
+	function gameOver({
+		score,
+		gameKey,
+	}: {
+		score: number;
+		gameKey: `${string}-${string}-${string}-${string}-${string}`;
+	}) {
+		// set high score and change game key
+		alert("you lost");
+		setGameKey(gameKey);
+		setHighScore(score);
+	}
+
+	useEffect(() => {
+		getEmojiArr(emojiTotalCount).then((emojiData) => {
+			setEmojiSet(emojiData);
+		});
+	}, [emojiTotalCount]);
+
+	return (
+		<Game
+			key={gameKey}
+			highScore={highScore}
+			emojiSet={emojiSet}
+			gameOverFunction={gameOver}
+		></Game>
+	);
+}
 
 export default App;
