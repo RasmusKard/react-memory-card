@@ -9,13 +9,33 @@ import masterIcon from "./assets/master.png";
 import challengerIcon from "./assets/challenger.png";
 
 const RANKSARRAY = [
-	{ name: "bronze", img: bronzeIcon, requiredScore: 0 },
-	{ name: "silver", img: silverIcon, requiredScore: 5 },
-	{ name: "gold", img: goldIcon, requiredScore: 10 },
-	{ name: "platinum", img: platinumIcon, requiredScore: 25 },
-	{ name: "diamond", img: diamondIcon, requiredScore: 35 },
-	{ name: "master", img: masterIcon, requiredScore: 45 },
-	{ name: "challenger", img: challengerIcon, requiredScore: 60 },
+	{ name: "Bronze", img: bronzeIcon, requiredScore: 0 },
+	{ name: "Silver", img: silverIcon, requiredScore: 10 },
+	{ name: "Gold", img: goldIcon, requiredScore: 30 },
+	{ name: "Platinum", img: platinumIcon, requiredScore: 60 },
+	{ name: "Diamond", img: diamondIcon, requiredScore: 100 },
+	{ name: "Master", img: masterIcon, requiredScore: 160 },
+	{ name: "Challenger", img: challengerIcon, requiredScore: 230 },
+];
+
+const GROUPS = [
+	"creature-face",
+	"monkey-face",
+	"drink",
+	"food-asian",
+	"food-fruit",
+	"food-prepared",
+	"food-sweet",
+	"food-vegetable",
+	"animal-amphibian",
+	"animal-bird",
+	"animal-bug",
+	"animal-mammal",
+	"animal-marine",
+	"animal-reptile",
+	"plant-flower",
+	"plant-other",
+	"travel-and-places",
 ];
 
 interface emojiObj {
@@ -23,11 +43,18 @@ interface emojiObj {
 }
 
 async function getEmojiArr(emojiCount: number) {
-	const response = await fetch("https://emojihub.yurace.pro/api/all", {
-		method: "GET",
-	});
-	const emojiArr: emojiObj[] = await response.json();
-	emojiCount = Math.min(emojiArr.length, emojiCount);
+	const emojiArr: emojiObj[] = [];
+	for (const group of GROUPS) {
+		const response = await fetch(
+			`https://emojihub.yurace.pro/api/all/group/${group}`,
+			{
+				method: "GET",
+			}
+		);
+		const responseArr = await response.json();
+		emojiArr.push(...responseArr);
+		emojiCount = Math.min(emojiArr.length, emojiCount);
+	}
 
 	const randomEmojiSet: Set<number> = new Set();
 	while (randomEmojiSet.size < emojiCount) {
@@ -40,33 +67,57 @@ async function getEmojiArr(emojiCount: number) {
 	return randomEmojiSet;
 }
 
-function Header({
-	score,
-	currentRankTier,
-}: {
-	score: number;
-	currentRankTier: number;
-}) {
-	const goalScore = RANKSARRAY[currentRankTier + 1].requiredScore;
+function App() {
+	const [gameKey, setGameKey] = useState(crypto.randomUUID());
+
+	const rankTierLocalStorage = localStorage.getItem("rankTier");
+	const [rankTier, setRankTier] = useState(
+		rankTierLocalStorage ? JSON.parse(rankTierLocalStorage) : 0
+	);
+
+	function gameOver({
+		gameKey,
+	}: {
+		gameKey: `${string}-${string}-${string}-${string}-${string}`;
+	}) {
+		// set high score and change game key
+		alert("You lost");
+		setGameKey(gameKey);
+	}
+
+	function rankUp() {
+		const newRank = rankTier + 1;
+		localStorage.setItem("rankTier", JSON.stringify(newRank));
+		setRankTier(newRank);
+
+		const newRankName = RANKSARRAY[newRank].name;
+
+		alert(`Congratulations, you ranked up to ${newRankName}!`);
+	}
+
 	return (
 		<>
-			<div id="rank-container">
-				<img id="rank-icon" src={bronzeIcon}></img>
-				{score} LP
-				<progress value={score} max={goalScore}></progress>
-				{goalScore} LP
-				<img id="rank-icon" src={silverIcon}></img>
-			</div>
+			<h1 id="app-title">
+				How high can you climb in the ranked ladder of memory?
+			</h1>
+
+			<hr></hr>
+
+			<Game
+				key={gameKey}
+				gameOverFunction={gameOver}
+				currentRankTier={rankTier}
+				rankUpFunction={rankUp}
+			></Game>
 		</>
 	);
 }
 
 function Game({
-	emojiSet,
 	gameOverFunction,
 	currentRankTier,
+	rankUpFunction,
 }: {
-	emojiSet: Set<number>;
 	gameOverFunction({
 		score,
 		gameKey,
@@ -75,15 +126,32 @@ function Game({
 		gameKey: `${string}-${string}-${string}-${string}-${string}`;
 	}): void;
 	currentRankTier: number;
+	rankUpFunction: () => void;
 }) {
-	const [score, setScore] = useState(RANKSARRAY[currentRankTier].requiredScore);
+	const [emojiSet, setEmojiSet] = useState<Set<number>>(new Set());
+	const currentRankScore = RANKSARRAY[currentRankTier].requiredScore;
+	const [score, setScore] = useState(currentRankScore);
+
+	const nextRankScore = RANKSARRAY[currentRankTier + 1].requiredScore;
+
+	const emojiTotalCount = Math.floor((nextRankScore - currentRankScore) * 0.75);
+
+	useEffect(() => {
+		getEmojiArr(emojiTotalCount).then((emojiData) => {
+			setEmojiSet(emojiData);
+		});
+	}, [emojiTotalCount]);
 
 	function userLost() {
 		gameOverFunction({ score: score, gameKey: crypto.randomUUID() });
 	}
 
 	function incrementScore() {
-		setScore(score + 1);
+		const newScore = score + 1;
+		if (newScore >= nextRankScore) {
+			rankUpFunction();
+		}
+		setScore(newScore);
 	}
 
 	return (
@@ -99,6 +167,32 @@ function Game({
 	);
 }
 
+function Header({
+	score,
+	currentRankTier,
+}: {
+	score: number;
+	currentRankTier: number;
+}) {
+	const goalScore = RANKSARRAY[currentRankTier + 1].requiredScore;
+	const currentRankScore = RANKSARRAY[currentRankTier].requiredScore;
+
+	const currentRankIcon = RANKSARRAY[currentRankTier].img;
+	const nextRankIcon = RANKSARRAY[currentRankTier + 1].img;
+	return (
+		<>
+			<div id="rank-container">
+				<img id="rank-icon" src={currentRankIcon}></img>
+				{score} LP
+				<progress value={score} max={goalScore}></progress>
+				{goalScore} LP
+				<img id="rank-icon" src={nextRankIcon}></img>
+			</div>
+			<p>Current score: {score - currentRankScore}</p>
+		</>
+	);
+}
+
 function MemoryCard({
 	emojiSet,
 	userLostFunction,
@@ -108,9 +202,8 @@ function MemoryCard({
 	userLostFunction: () => void;
 	scoreIncrementFunction: () => void;
 }) {
-	const [visibleEmoji, setVisibleEmoji] = useState(10003);
+	const [visibleEmoji, setVisibleEmoji] = useState(128260);
 	const [clickedEmojis, setClickedEmojis] = useState<Set<number>>(new Set());
-	const [isCorrect, setIsCorrect] = useState<string | null>(null);
 
 	useEffect(() => {
 		// getEmojiArr(emojiTotalCount).then((emojiData) => {
@@ -125,7 +218,6 @@ function MemoryCard({
 	function handleEmojiClick(userSeenChoice: boolean) {
 		const userMadeCorrectChoice =
 			userSeenChoice !== clickedEmojis.has(visibleEmoji);
-		setIsCorrect(userMadeCorrectChoice ? "correct" : null);
 		if (!userMadeCorrectChoice) {
 			userLostFunction();
 			return;
@@ -144,57 +236,13 @@ function MemoryCard({
 	return (
 		<>
 			<div className="emoji-card">
-				<div className={"emoji " + (isCorrect ? isCorrect : "")}>
-					{String.fromCodePoint(visibleEmoji)}
-				</div>
+				<div className="emoji">{String.fromCodePoint(visibleEmoji)}</div>
 			</div>
 
 			<div>
 				<button onClick={() => handleEmojiClick(true)}>New ✅</button>{" "}
 				<button onClick={() => handleEmojiClick(false)}>Old ❌</button>
 			</div>
-		</>
-	);
-}
-
-function App() {
-	const [emojiSet, setEmojiSet] = useState<Set<number>>(new Set());
-	const [rankTier, setRankTier] = useState(0);
-	const emojiTotalCount = 10;
-	const [gameKey, setGameKey] = useState(crypto.randomUUID());
-
-	function gameOver({
-		score,
-		gameKey,
-	}: {
-		score: number;
-		gameKey: `${string}-${string}-${string}-${string}-${string}`;
-	}) {
-		// set high score and change game key
-		alert("you lost");
-		setGameKey(gameKey);
-	}
-
-	useEffect(() => {
-		getEmojiArr(emojiTotalCount).then((emojiData) => {
-			setEmojiSet(emojiData);
-		});
-	}, [emojiTotalCount]);
-
-	return (
-		<>
-			<h1 id="app-title">
-				How high can you climb in the ranked ladder of memory?
-			</h1>
-
-			<hr></hr>
-
-			<Game
-				key={gameKey}
-				emojiSet={emojiSet}
-				gameOverFunction={gameOver}
-				currentRankTier={rankTier}
-			></Game>
 		</>
 	);
 }
